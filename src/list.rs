@@ -14,7 +14,7 @@ pub(crate) struct FixedSizeList<T> {
     nodes: Vec<Option<FixedSizeListNode<T>>>,
     // An un-ordered set of indices that are not in use in `nodes`.
     // All `None` entries in `nodes` _must_ be listed in `free`.
-    // A `Vec<usize>` was choosen in order to have O(1) complexity
+    // A `Vec<usize>` was chosen in order to have O(1) complexity
     // for pop and avoid having to go through `nodes` in order to
     // to find a free place.
     free: Vec<usize>,
@@ -40,24 +40,28 @@ impl<T> FixedSizeList<T> {
         Self {
             capacity,
             nodes: Vec::with_capacity(reserve),
-            free: Vec::new(),
+            free: Vec::with_capacity(reserve),
             front: usize::MAX,
             back: usize::MAX,
         }
     }
 
+    #[inline]
     pub(crate) fn capacity(&self) -> usize {
         self.capacity
     }
 
+    #[inline]
     pub(crate) fn len(&self) -> usize {
         self.nodes.len() - self.free.len()
     }
 
+    #[inline]
     pub(crate) fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    #[inline]
     pub(crate) fn is_full(&self) -> bool {
         self.len() == self.capacity()
     }
