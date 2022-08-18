@@ -102,13 +102,22 @@ use crate::list::{FixedSizeList, FixedSizeListIter, FixedSizeListIterMut};
 pub use crate::weight::*;
 
 use std::borrow::Borrow;
-use std::collections::hash_map::RandomState;
-use std::collections::hash_map::{Entry, OccupiedEntry, VacantEntry};
-use std::collections::HashMap;
+// use core::borrow::Borrow;
+// use std::collections::hash_map::RandomState;
+// use std::collections::HashMap;
+// use std::collections::hash_map::{Entry, OccupiedEntry, VacantEntry};
 use std::hash::{BuildHasher, Hash};
+// use core::hash::{BuildHasher, Hash};
 use std::iter::FromIterator;
+// use core::iter::FromIterator;
 use std::num::NonZeroUsize;
+// use core::num::NonZeroUsize;
 use std::rc::Rc;
+// use core::rc::Rc;
+
+use hashbrown::hash_map::DefaultHashBuilder;
+use hashbrown::hash_map::{Entry, OccupiedEntry, VacantEntry};
+use hashbrown::HashMap;
 
 // Internal key structure. The generic type `K` is the user supplied
 // key type that is wrapped into a `Rc` in order to be shared both in
@@ -126,14 +135,14 @@ use std::rc::Rc;
 #[derive(Debug, Eq, Hash, PartialEq)]
 struct Key<K>(Rc<K>);
 
-impl<K> From<&OccupiedEntry<'_, Key<K>, usize>> for Key<K> {
-    fn from(entry: &OccupiedEntry<'_, Key<K>, usize>) -> Self {
+impl<K, S> From<&OccupiedEntry<'_, Key<K>, usize, S>> for Key<K> {
+    fn from(entry: &OccupiedEntry<'_, Key<K>, usize, S>) -> Self {
         Self(entry.key().0.clone())
     }
 }
 
-impl<K> From<&VacantEntry<'_, Key<K>, usize>> for Key<K> {
-    fn from(entry: &VacantEntry<'_, Key<K>, usize>) -> Self {
+impl<K, S> From<&VacantEntry<'_, Key<K>, usize, S>> for Key<K> {
+    fn from(entry: &VacantEntry<'_, Key<K>, usize, S>) -> Self {
         Self(entry.key().0.clone())
     }
 }
@@ -194,7 +203,7 @@ struct CLruNode<K, V> {
 ///
 /// Note 1: See [`CLruCache::put_with_weight`]
 #[derive(Debug)]
-pub struct CLruCache<K, V, S = RandomState, W: WeightScale<K, V> = ZeroWeightScale> {
+pub struct CLruCache<K, V, S = DefaultHashBuilder, W: WeightScale<K, V> = ZeroWeightScale> {
     lookup: HashMap<Key<K>, usize, S>,
     storage: FixedSizeList<CLruNode<K, V>>,
     scale: W,
@@ -241,12 +250,12 @@ impl<K: Eq + Hash, V, S: BuildHasher> CLruCache<K, V, S> {
     }
 }
 
-impl<K: Eq + Hash, V, W: WeightScale<K, V>> CLruCache<K, V, RandomState, W> {
+impl<K: Eq + Hash, V, W: WeightScale<K, V>> CLruCache<K, V, DefaultHashBuilder, W> {
     /// Creates a new LRU cache that holds at most `capacity` elements
     /// and uses the provided scale to retrieve value's weight.
-    pub fn with_scale(capacity: NonZeroUsize, scale: W) -> CLruCache<K, V, RandomState, W> {
+    pub fn with_scale(capacity: NonZeroUsize, scale: W) -> CLruCache<K, V, DefaultHashBuilder, W> {
         Self {
-            lookup: HashMap::with_hasher(RandomState::default()),
+            lookup: HashMap::with_hasher(DefaultHashBuilder::default()),
             storage: FixedSizeList::new(capacity.get()),
             scale,
             weight: 0,
@@ -2134,7 +2143,7 @@ mod tests {
             is_send::<CLruCache<K, V, S, W>>();
         }
 
-        cache_is_send::<String, String, RandomState, ZeroWeightScale>();
+        cache_is_send::<String, String, DefaultHashBuilder, ZeroWeightScale>();
 
         fn cache_in_mutex<
             K: Default + Eq + Hash + Send + 'static,
@@ -2185,7 +2194,7 @@ mod tests {
             is_sync::<CLruCache<K, V, S, W>>();
         }
 
-        cache_is_sync::<String, String, RandomState, ZeroWeightScale>();
+        cache_is_sync::<String, String, DefaultHashBuilder, ZeroWeightScale>();
 
         fn cache_in_rwlock<
             K: Default + Eq + Hash + Send + Sync + 'static,

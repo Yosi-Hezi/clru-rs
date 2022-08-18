@@ -1,11 +1,13 @@
 use crate::weight::{WeightScale, ZeroWeightScale};
-use std::collections::hash_map::RandomState;
+// use std::collections::hash_map::RandomState;
+use hashbrown::hash_map::DefaultHashBuilder;
 use std::hash::BuildHasher;
 use std::marker::PhantomData;
-use std::num::NonZeroUsize;
+// use std::num::NonZeroUsize;
+use core::num::NonZeroUsize;
 
 /// A configuration structure used to create an LRU cache.
-pub struct CLruCacheConfig<K, V, S = RandomState, W = ZeroWeightScale> {
+pub struct CLruCacheConfig<K, V, S = DefaultHashBuilder, W = ZeroWeightScale> {
     pub(crate) capacity: NonZeroUsize,
     pub(crate) hash_builder: S,
     pub(crate) reserve: Option<usize>,
@@ -19,7 +21,7 @@ impl<K, V> CLruCacheConfig<K, V> {
     pub fn new(capacity: NonZeroUsize) -> Self {
         Self {
             capacity,
-            hash_builder: RandomState::default(),
+            hash_builder: DefaultHashBuilder::default(),
             reserve: None,
             scale: ZeroWeightScale,
             _marker: PhantomData,
