@@ -73,15 +73,37 @@ impl<T> FixedSizeList<T> {
         self.back = usize::MAX;
     }
 
+    #[cfg(test)]
     fn next(&mut self) -> Option<usize> {
-        if self.is_full() {
+        let len = self.len();
+        if len == self.capacity() {
             None
         } else if self.free.is_empty() {
-            let len = self.len();
             self.nodes.push(None);
             Some(len)
         } else {
             self.free.pop()
+        }
+    }
+
+    #[inline]
+    fn try_populate_next(&mut self, data: T) -> Option<usize> {
+        let len = self.len();
+        if len == self.capacity() {
+            return None
+        }
+        let value = Some(FixedSizeListNode {
+            prev: usize::MAX,
+            next: self.front,
+            data,
+        });
+        if self.free.is_empty() {
+            self.nodes.push(value);
+            Some(len)
+        } else {
+            let idx = self.free.pop().unwrap();
+            self.nodes[idx] = value;
+            Some(idx)
         }
     }
 
@@ -120,16 +142,18 @@ impl<T> FixedSizeList<T> {
     }
 
     pub(crate) fn push_front(&mut self, data: T) -> Option<(usize, &mut T)> {
-        let idx = self.next()?;
-        self.nodes[idx] = Some(FixedSizeListNode {
-            prev: usize::MAX,
-            next: self.front,
-            data,
-        });
+        let idx = self.try_populate_next(data)?;
+        // let idx = self.next()?;
+        //FIXME no need to put None in next in this case
+        // self.nodes[idx] = Some(FixedSizeListNode {
+        //     prev: usize::MAX,
+        //     next: self.front,
+        //     data,
+        // });
         if let Some(front) = self.node_mut(self.front) {
             front.prev = idx;
-        }
-        if self.node_ref(self.back).is_none() {
+        } else {
+            // Here: self.node_ref(self.back).is_none() == true
             self.back = idx;
         }
         self.front = idx;
